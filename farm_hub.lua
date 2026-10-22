@@ -2074,7 +2074,7 @@ function VISUAL.setSuperUltraFps(on)
 	end
 end
 
-local SPOOF_NAME = "Blizzard Hub"
+local SPOOF_NAME = "K5-Hub"
 
 local function apply_glimmer(lbl)
 	if not lbl or not lbl:IsA("TextLabel") then return end
@@ -2211,7 +2211,7 @@ function S.set_hide_ingame_name(on)
 end
 
 local Window = Airflow:CreateWindow({
-	Name = "Blizzard Hub",
+	Name = "K5-Hub",
 	LoadingSubtitle = "Foresters",
 	Icon = "rbxassetid://74093118428711",
 	ToggleUIKeybind = "RightShift",
@@ -5156,6 +5156,6 @@ if S.hideIngameName and S.set_hide_ingame_name then
 end
 
 pcall(function()
-	Window:Notify({Title = "Blizzard", Content = "Farm hub ready", Duration = 4})
+	Window:Notify({Title = "K5-Hub", Content = "Farm hub ready", Duration = 4})
 end)
-print("[Blizzard] loaded")
+print("[K5-Hub] loaded")
