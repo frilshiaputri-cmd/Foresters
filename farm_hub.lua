@@ -2213,7 +2213,7 @@ end
 local Window = Airflow:CreateWindow({
 	Name = "K5-Hub",
 	LoadingSubtitle = "Foresters",
-	Icon = "rbxassetid://74093118428711",
+	Icon = "rbxassetid://106988550042558",
 	ToggleUIKeybind = "RightShift",
 	Backdrop = {Weather = "None", Tint = 0.45},
 	AdaptiveSize = false,
