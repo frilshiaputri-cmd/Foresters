@@ -815,6 +815,7 @@ local function get_tree_stand(tree, fromPos, forceRandom)
 end
 
 local lastFarmRespawnTpAt = 0
+local farmTreeJustFelled = false
 
 local function attach(tree, anchor, reroll)
 	local root = hrp()
@@ -843,12 +844,14 @@ local function attach(tree, anchor, reroll)
 
 	local dist = (standPos - root.Position).Magnitude
 	if dist > 8 or reroll then
-		-- Avoid repeatedly killing the character when a chop session fails to start.
-		-- Keep respawn TP for long moves, but walk during the short cooldown.
-		if os.clock() - lastFarmRespawnTpAt >= 15 then
+		-- Never respawn-TP while the current tree is still being chopped.
+		-- Walk to the first/current target; allow respawn-TP only after a tree was felled.
+		local canRespawnTp = S.farm and farmTreeJustFelled
+		if canRespawnTp and os.clock() - lastFarmRespawnTpAt >= 15 then
 			local tpOk = teleport_to(standPos, Vector3.zero, facing)
 			if tpOk then
 				lastFarmRespawnTpAt = os.clock()
+				farmTreeJustFelled = false
 			else
 				WALK.go(standPos)
 			end
@@ -2736,6 +2739,9 @@ local function set_farm(on)
 					task.wait(0.15)
 					continuationAttempts += 1
 					good, result = chop_tree(tree)
+				end
+				if good and result == "felled" then
+					farmTreeJustFelled = true
 				end
 				if not good then
 					stats.blocked[tree] = os.clock() + 2.5
