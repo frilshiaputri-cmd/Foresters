@@ -814,6 +814,8 @@ local function get_tree_stand(tree, fromPos, forceRandom)
 	return standPos, facing, safeDist
 end
 
+local lastFarmRespawnTpAt = 0
+
 local function attach(tree, anchor, reroll)
 	local root = hrp()
 	if not root or not tree or not tree.Parent then return end
@@ -841,8 +843,27 @@ local function attach(tree, anchor, reroll)
 
 	local dist = (standPos - root.Position).Magnitude
 	if dist > 8 or reroll then
-		-- Restore the original respawn-teleport movement between trees.
-		teleport_to(standPos, Vector3.zero, facing)
+		-- Avoid repeatedly killing the character when a chop session fails to start.
+		-- Keep respawn TP for long moves, but walk during the short cooldown.
+		if os.clock() - lastFarmRespawnTpAt >= 15 then
+			local tpOk = teleport_to(standPos, Vector3.zero, facing)
+			if tpOk then
+				lastFarmRespawnTpAt = os.clock()
+			else
+				WALK.go(standPos)
+			end
+		else
+			WALK.go(standPos)
+		end
+		local movedRoot = hrp()
+		if movedRoot then
+			movedRoot.Anchored = false
+			movedRoot.CFrame = CFrame.lookAt(
+				movedRoot.Position,
+				Vector3.new(basePos.X, movedRoot.Position.Y, basePos.Z))
+			movedRoot.AssemblyLinearVelocity = Vector3.zero
+			movedRoot.AssemblyAngularVelocity = Vector3.zero
+		end
 	else
 		root.Anchored = false
 		root.CFrame = facing
