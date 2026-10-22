@@ -1847,7 +1847,7 @@ local function chop_tree(tree)
 							pcall(function()
 								firesignal(hitBtn.InputBegan, fakeInput, false)
 							end)
-							task.wait(0.12) -- debounce
+							task.wait(0.06) -- shorter debounce for faster follow-up hits
 							break
 						end
 					end
@@ -1857,7 +1857,7 @@ local function chop_tree(tree)
 		task.wait(0.015)
 	end
 
-	task.wait(0.6)
+	task.wait(0.15)
 	local isFelled = (not tree.Parent) or (tree:GetAttribute("State") == "Felled")
 
 	if ChopState.session() ~= nil then
@@ -2644,6 +2644,12 @@ local function set_farm(on)
 	farmOn = on
 	S.farm = on
 	if farmToggle then farmToggle:Set(on) end
+	if on then
+		-- Ensure every completed tree chop is reported as perfect.
+		pcall(perfect_hook_install)
+	else
+		pcall(perfect_hook_remove)
+	end
 	if not on then
 		noclipOn = false
 		set_anchored(false)
