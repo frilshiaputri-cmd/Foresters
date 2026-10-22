@@ -841,7 +841,18 @@ local function attach(tree, anchor, reroll)
 
 	local dist = (standPos - root.Position).Magnitude
 	if dist > 8 or reroll then
-		teleport_to(standPos, Vector3.zero, facing)
+		-- Farm movement must not kill/respawn the player for every tree.
+		-- Walk to the next tree using the existing pathfinding movement.
+		WALK.go(standPos)
+		local movedRoot = hrp()
+		if movedRoot then
+			movedRoot.Anchored = false
+			movedRoot.CFrame = CFrame.lookAt(
+				movedRoot.Position,
+				Vector3.new(basePos.X, movedRoot.Position.Y, basePos.Z))
+			movedRoot.AssemblyLinearVelocity = Vector3.zero
+			movedRoot.AssemblyAngularVelocity = Vector3.zero
+		end
 	else
 		root.Anchored = false
 		root.CFrame = facing
