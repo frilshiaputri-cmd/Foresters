@@ -841,18 +841,8 @@ local function attach(tree, anchor, reroll)
 
 	local dist = (standPos - root.Position).Magnitude
 	if dist > 8 or reroll then
-		-- Farm movement must not kill/respawn the player for every tree.
-		-- Walk to the next tree using the existing pathfinding movement.
-		WALK.go(standPos)
-		local movedRoot = hrp()
-		if movedRoot then
-			movedRoot.Anchored = false
-			movedRoot.CFrame = CFrame.lookAt(
-				movedRoot.Position,
-				Vector3.new(basePos.X, movedRoot.Position.Y, basePos.Z))
-			movedRoot.AssemblyLinearVelocity = Vector3.zero
-			movedRoot.AssemblyAngularVelocity = Vector3.zero
-		end
+		-- Restore the original respawn-teleport movement between trees.
+		teleport_to(standPos, Vector3.zero, facing)
 	else
 		root.Anchored = false
 		root.CFrame = facing
@@ -1847,17 +1837,17 @@ local function chop_tree(tree)
 							pcall(function()
 								firesignal(hitBtn.InputBegan, fakeInput, false)
 							end)
-							task.wait(0.06) -- shorter debounce for faster follow-up hits
+							task.wait(0.03) -- faster follow-up hits
 							break
 						end
 					end
 				end
 			end
 		end
-		task.wait(0.015)
+		task.wait(0.01)
 	end
 
-	task.wait(0.15)
+	task.wait(0.08)
 	local isFelled = (not tree.Parent) or (tree:GetAttribute("State") == "Felled")
 
 	if ChopState.session() ~= nil then
