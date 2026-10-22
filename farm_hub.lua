@@ -2695,6 +2695,20 @@ local function set_farm(on)
 				end
 				set_target_text(tostring(tree:GetAttribute("Species") or tree.Name))
 				local good, result = chop_tree(tree)
+				-- A chop session can end while the tree is still standing.
+				-- Continue the same target instead of blocking it after the first session.
+				local continuationAttempts = 0
+				while not good
+					and result == "held"
+					and tree.Parent
+					and tree:GetAttribute("State") ~= "Felled"
+					and continuationAttempts < 12
+					and S.farm
+					and alive() do
+					task.wait(0.15)
+					continuationAttempts += 1
+					good, result = chop_tree(tree)
+				end
 				if not good then
 					stats.blocked[tree] = os.clock() + 2.5
 					stats.failed += 1
