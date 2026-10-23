@@ -814,9 +814,6 @@ local function get_tree_stand(tree, fromPos, forceRandom)
 	return standPos, facing, safeDist
 end
 
-local lastFarmRespawnTpAt = 0
-local farmTreeJustFelled = false
-
 local function attach(tree, anchor, reroll)
 	local root = hrp()
 	if not root or not tree or not tree.Parent then return end
@@ -844,29 +841,7 @@ local function attach(tree, anchor, reroll)
 
 	local dist = (standPos - root.Position).Magnitude
 	if dist > 8 or reroll then
-		-- Never respawn-TP while the current tree is still being chopped.
-		-- Walk to the first/current target; allow respawn-TP only after a tree was felled.
-		local canRespawnTp = S.farm and farmTreeJustFelled
-		if canRespawnTp and os.clock() - lastFarmRespawnTpAt >= 15 then
-			local tpOk = teleport_to(standPos, Vector3.zero, facing)
-			if tpOk then
-				lastFarmRespawnTpAt = os.clock()
-				farmTreeJustFelled = false
-			else
-				WALK.go(standPos)
-			end
-		else
-			WALK.go(standPos)
-		end
-		local movedRoot = hrp()
-		if movedRoot then
-			movedRoot.Anchored = false
-			movedRoot.CFrame = CFrame.lookAt(
-				movedRoot.Position,
-				Vector3.new(basePos.X, movedRoot.Position.Y, basePos.Z))
-			movedRoot.AssemblyLinearVelocity = Vector3.zero
-			movedRoot.AssemblyAngularVelocity = Vector3.zero
-		end
+		teleport_to(standPos, Vector3.zero, facing)
 	else
 		root.Anchored = false
 		root.CFrame = facing
@@ -1861,17 +1836,17 @@ local function chop_tree(tree)
 							pcall(function()
 								firesignal(hitBtn.InputBegan, fakeInput, false)
 							end)
-							task.wait(0.03) -- faster follow-up hits
+							task.wait(0.12) -- debounce
 							break
 						end
 					end
 				end
 			end
 		end
-		task.wait(0.01)
+		task.wait(0.015)
 	end
 
-	task.wait(0.08)
+	task.wait(0.6)
 	local isFelled = (not tree.Parent) or (tree:GetAttribute("State") == "Felled")
 
 	if ChopState.session() ~= nil then
@@ -2239,6 +2214,7 @@ local Window = Airflow:CreateWindow({
 	Name = "K5-Hub",
 	LoadingSubtitle = "Foresters",
 	Icon = "rbxassetid://106988550042558",
+	Icon = "rbxassetid://74093118428711",
 	ToggleUIKeybind = "RightShift",
 	Backdrop = {Weather = "None", Tint = 0.45},
 	AdaptiveSize = false,
@@ -2658,12 +2634,6 @@ local function set_farm(on)
 	farmOn = on
 	S.farm = on
 	if farmToggle then farmToggle:Set(on) end
-	if on then
-		-- Ensure every completed tree chop is reported as perfect.
-		pcall(perfect_hook_install)
-	else
-		pcall(perfect_hook_remove)
-	end
 	if not on then
 		noclipOn = false
 		set_anchored(false)
@@ -2726,23 +2696,6 @@ local function set_farm(on)
 				end
 				set_target_text(tostring(tree:GetAttribute("Species") or tree.Name))
 				local good, result = chop_tree(tree)
-				-- A chop session can end while the tree is still standing.
-				-- Continue the same target instead of blocking it after the first session.
-				local continuationAttempts = 0
-				while not good
-					and result == "held"
-					and tree.Parent
-					and tree:GetAttribute("State") ~= "Felled"
-					and continuationAttempts < 12
-					and S.farm
-					and alive() do
-					task.wait(0.15)
-					continuationAttempts += 1
-					good, result = chop_tree(tree)
-				end
-				if good and result == "felled" then
-					farmTreeJustFelled = true
-				end
 				if not good then
 					stats.blocked[tree] = os.clock() + 2.5
 					stats.failed += 1
@@ -5204,6 +5157,6 @@ if S.hideIngameName and S.set_hide_ingame_name then
 end
 
 pcall(function()
-	Window:Notify({Title = "K5-Hub", Content = "Farm hub ready", Duration = 4})
+	Window:Notify({Title = "Blizzard", Content = "Farm hub ready", Duration = 4})
 end)
-print("[K5-Hub] loaded")
+print("[Blizzard] loaded")
