@@ -2753,6 +2753,21 @@ local function set_farm(on)
 					return "no tree ready"
 				end
 				set_target_text(tostring(tree:GetAttribute("Species") or tree.Name))
+
+				-- Equip before travel as requested, then re-equip after spawn TP because respawning
+				-- can move the tool back to Backpack. Do not begin chopping until the axe is held.
+				if not ensure_axe_for_chop() then
+					return "axe equip failed before spawn TP"
+				end
+				local standPos, facing = get_tree_stand(tree, hrp() and hrp().Position)
+				local tpOk, tpErr = teleport_to(standPos, Vector3.zero, facing)
+				if not tpOk then
+					return "spawn TP failed: " .. tostring(tpErr)
+				end
+				task.wait(1.0)
+				if not ensure_axe_for_chop() then
+					return "axe equip failed after spawn TP"
+				end
 				local good, result = chop_tree(tree)
 				if not good then
 					stats.blocked[tree] = os.clock() + 2.5
