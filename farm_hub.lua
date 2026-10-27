@@ -2224,41 +2224,6 @@ local Window = Airflow:CreateWindow({
 })
 S.window = Window
 
-pcall(function()
-	local discordTab = Window:CreateTab({Name = "Discord", Icon = "message-square"})
-	local gbDiscord = discordTab:CreateGroupbox({Name = "Discord", Side = "Left"})
-	local gbChangelog = discordTab:CreateGroupbox({Name = "Changelog", Side = "Right"})
-
-	gbDiscord:CreateLabel("Join our community:")
-	gbDiscord:CreateInput({
-		Name = "Invite Link",
-		Default = "https://discord.gg/C56zw6khS8",
-		Placeholder = "https://discord.gg/C56zw6khS8",
-		Callback = function() end,
-	})
-	gbDiscord:CreateButton({
-		Name = "Copy Discord Link",
-		Callback = function()
-			pcall(function()
-				local link = "https://discord.gg/C56zw6khS8"
-				if setclipboard then
-					setclipboard(link)
-				elseif toclipboard then
-					toclipboard(link)
-				elseif syn and syn.write_clipboard then
-					syn.write_clipboard(link)
-				end
-				Window:Notify({Title = "Discord", Content = "Invite link copied to clipboard!", Duration = 3})
-			end)
-		end,
-	})
-
-	gbChangelog:CreateParagraph({
-		Title = "Latest Updates",
-		Content = "—",
-	})
-end)
-
 local farmTab = Window:CreateTab({Name = "Farm", Icon = "tree-pine"})
 local levelingTab = Window:CreateTab({Name = "Leveling", Icon = "trending-up"})
 local questTab = Window:CreateTab({Name = "Quest", Icon = "scroll"})
