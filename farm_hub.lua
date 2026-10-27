@@ -839,30 +839,37 @@ end
 local function equip_axe()
 	local char = plr.Character
 	if not char then return false end
+	local function isAxe(tool)
+		return tool and tool:IsA("Tool") and string.find(string.lower(tool.Name), "axe", 1, true) ~= nil
+	end
 	local function held()
-		for _, c in ipairs(char:GetChildren()) do
-			if c:IsA("Tool") and c.Name:match("Axe") then return true end
+		local currentChar = plr.Character
+		if not currentChar then return false end
+		for _, c in ipairs(currentChar:GetChildren()) do
+			if isAxe(c) then return true end
 		end
 		return false
 	end
 	if held() then return true end
 	local backpack = plr:FindFirstChild("Backpack")
-	if not backpack then return false end
 	local hum = char:FindFirstChildOfClass("Humanoid")
-	if not hum then return false end
+	if not backpack or not hum then return false end
 
-	for _, c in ipairs(backpack:GetChildren()) do
-		if c:IsA("Tool") and c.Name:match("Axe") then
-			local axeId = c:GetAttribute("AxeId")
+	for _, tool in ipairs(backpack:GetChildren()) do
+		if isAxe(tool) then
+			-- Ask the game's own axe service first, then use Roblox's equip API as fallback.
+			local axeId = tool:GetAttribute("AxeId")
 			if axeId then
 				pcall(function() call(AxeService, "EquipAxe", axeId) end)
-				for _ = 1, 16 do
+				for _ = 1, 20 do
 					if held() then return true end
 					task.wait(0.05)
 				end
 			end
-			pcall(function() hum:EquipTool(c) end)
-			for _ = 1, 16 do
+			local currentChar = plr.Character
+			local currentHum = currentChar and currentChar:FindFirstChildOfClass("Humanoid")
+			if currentHum then pcall(function() currentHum:EquipTool(tool) end) end
+			for _ = 1, 20 do
 				if held() then return true end
 				task.wait(0.05)
 			end
@@ -872,9 +879,11 @@ local function equip_axe()
 end
 
 local function ensure_axe_for_chop()
-	if equip_axe() then return true end
-	task.wait(0.15)
-	return equip_axe()
+	for _ = 1, 3 do
+		if equip_axe() then return true end
+		task.wait(0.2)
+	end
+	return false
 end
 
 local function await(promise, timeout)
@@ -1731,11 +1740,12 @@ end
 
 local function chop_tree(tree)
 	if not tree or not tree.Parent then return false, "tree gone" end
-	-- Position and equip first; only then lock out respawn TP for the actual chop.
-	ensure_axe_for_chop()
+	-- Get into chopping position first, then equip and verify the axe in the live character.
 	attach(tree, true, false)
-	ensure_axe_for_chop()
 	settle_on_ground()
+	if not ensure_axe_for_chop() then
+		return false, "axe equip failed"
+	end
 	S.choppingTree = tree
 	S.choppingStartedAt = os.clock()
 
