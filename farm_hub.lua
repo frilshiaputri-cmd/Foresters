@@ -2224,7 +2224,7 @@ local Window = Airflow:CreateWindow({
 })
 S.window = Window
 
-do
+pcall(function()
 	local discordTab = Window:CreateTab({Name = "Discord", Icon = "message-square"})
 	local gbDiscord = discordTab:CreateGroupbox({Name = "Discord", Side = "Left"})
 	local gbChangelog = discordTab:CreateGroupbox({Name = "Changelog", Side = "Right"})
@@ -2257,7 +2257,7 @@ do
 		Title = "Latest Updates",
 		Content = "—",
 	})
-end
+end)
 
 local farmTab = Window:CreateTab({Name = "Farm", Icon = "tree-pine"})
 local levelingTab = Window:CreateTab({Name = "Leveling", Icon = "trending-up"})
