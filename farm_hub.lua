@@ -2222,7 +2222,70 @@ local Window = Airflow:CreateWindow({
 	Size = UDim2.fromOffset(700, 430),
 	ConfigurationSaving = {Enabled = true, FolderName = "ForestersHub"},
 })
+
 S.window = Window
+
+-- Compatibility adapter: farm_hub.lua was written for a Groupbox-based UI API,
+-- while the current Airflow-UI exposes Tab:Section/Label/Button/Toggle/etc.
+do
+	local originalCreateTab = Window.CreateTab
+	local function normalizeOptions(value)
+		if type(value) == "string" then return {Name = value, Text = value, Title = value} end
+		return type(value) == "table" and value or {}
+	end
+	local function patchTab(tab)
+		if not tab or tab.__K5Compat then return tab end
+		tab.__K5Compat = true
+		function tab:CreateGroupbox(options)
+			options = normalizeOptions(options)
+			pcall(function() self:Section({Name = options.Name or options.Title or "Options"}) end)
+			local group = {_tab = self}
+			function group:CreateLabel(value)
+				local opts = normalizeOptions(value)
+				return self._tab:Label({Text = opts.Text or opts.Name or opts.Title or ""})
+			end
+			function group:CreateParagraph(opts)
+				opts = normalizeOptions(opts)
+				return self._tab:Paragraph({Name = opts.Name or opts.Title or "Info", Content = opts.Content or ""})
+			end
+			function group:CreateButton(opts)
+				opts = normalizeOptions(opts)
+				return self._tab:Button({Name = opts.Name or opts.Title or "Button", Desc = opts.Description or opts.Desc, Callback = opts.Callback, Style = opts.Style, Icon = opts.Icon})
+			end
+			function group:CreateToggle(opts)
+				opts = normalizeOptions(opts)
+				return self._tab:Toggle({Name = opts.Name or opts.Title or "Toggle", Desc = opts.Description or opts.Desc, Default = opts.Default == true, Flag = opts.Flag, Callback = opts.Callback})
+			end
+			function group:CreateSlider(opts)
+				opts = normalizeOptions(opts)
+				return self._tab:Slider({Name = opts.Name or opts.Title or "Slider", Desc = opts.Description or opts.Desc, Min = opts.Min, Max = opts.Max, Default = opts.Default or opts.CurrentValue, Step = opts.Increment or opts.Step, Suffix = opts.Suffix, Flag = opts.Flag, Callback = opts.Callback})
+			end
+			function group:CreateDropdown(opts)
+				opts = normalizeOptions(opts)
+				return self._tab:Dropdown({Name = opts.Name or opts.Title or "Dropdown", Desc = opts.Description or opts.Desc, Options = opts.Options or opts.Values or {}, Default = opts.Default or opts.CurrentOption, Multi = opts.Multi == true, Flag = opts.Flag, Callback = opts.Callback})
+			end
+			function group:CreateInput(opts)
+				opts = normalizeOptions(opts)
+				return self._tab:Input({Name = opts.Name or opts.Title or "Input", Desc = opts.Description or opts.Desc, Placeholder = opts.Placeholder or opts.PlaceholderText, Default = opts.Default or opts.CurrentValue or "", Flag = opts.Flag, Callback = opts.Callback, OnChanged = opts.OnChanged})
+			end
+			function group:CreateStatus(opts)
+				opts = normalizeOptions(opts)
+				local prefix = tostring(opts.Name or opts.Title or "Status")
+				local control = self._tab:Label({Text = prefix .. ": " .. tostring(opts.Value or "-")})
+				local originalSet = control.Set
+				function control:Set(value)
+					return originalSet(self, prefix .. ": " .. tostring(value))
+				end
+				return control
+			end
+			return group
+		end
+		return tab
+	end
+	Window.CreateTab = function(self, ...)
+		return patchTab(originalCreateTab(self, ...))
+	end
+end
 
 local farmTab = Window:CreateTab({Name = "Farm", Icon = "tree-pine"})
 local levelingTab = Window:CreateTab({Name = "Leveling", Icon = "trending-up"})
