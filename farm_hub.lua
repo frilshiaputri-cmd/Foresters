@@ -741,22 +741,23 @@ local function wait_for_stream(pos)
 end
 
 local function teleport_to(pos, offset, finalFacing)
-	-- Tree-to-tree teleport: never reset/kill the character to travel between trees.
-	-- The active chopping lock prevents another worker from moving the player mid-chop.
+	-- Restore the original spawn-TP travel method between trees.
+	-- respawnJump handles the respawn and places the character at the destination.
 	if S and S.choppingTree and S.choppingStartedAt and (os.clock() - S.choppingStartedAt) < 45 then
-		return false, "chop in progress; teleport paused"
+		return false, "chop in progress; spawn TP paused"
 	end
-	local root = hrp()
-	if not root or not pos then return false, "no character or destination" end
+	if not pos then return false, "no destination" end
 	local dest = pos + (offset or Vector3.new(0, 1, 4))
 	wait_for_stream(dest)
-	root = hrp()
-	if not root then return false, "character unavailable" end
-	root.Anchored = false
-	root.CFrame = finalFacing or CFrame.new(dest)
-	root.AssemblyLinearVelocity = Vector3.zero
-	root.AssemblyAngularVelocity = Vector3.zero
-	task.wait(0.1)
+	local ok, err = WALK.respawnJump(dest)
+	if not ok then return false, err or "spawn TP failed" end
+	local root = hrp()
+	if root and finalFacing then
+		-- Keep the respawn landing position, applying only the requested facing direction.
+		local p = root.Position
+		local look = finalFacing.LookVector
+		root.CFrame = CFrame.lookAt(p, p + Vector3.new(look.X, 0, look.Z))
+	end
 	return true
 end
 local function get_tree_stand(tree, fromPos, forceRandom)
