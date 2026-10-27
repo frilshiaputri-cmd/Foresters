@@ -363,8 +363,12 @@ end
 
 function WALK.respawnJump(dest)
 	-- Never force a respawn while the current tree's chop session is active.
-	if S and S.choppingTree then
+	if S and S.choppingTree and S.choppingStartedAt and (os.clock() - S.choppingStartedAt) < 45 then
 		return false, "chop in progress; respawn TP paused"
+	end
+	if S then
+		S.choppingTree = nil
+		S.choppingStartedAt = nil
 	end
 	local char = plr.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -1760,6 +1764,7 @@ local function chop_tree(tree)
 	ensure_axe_for_chop()
 	settle_on_ground()
 	S.choppingTree = tree
+	S.choppingStartedAt = os.clock()
 
 	local char = plr.Character
 	local axeTool = nil
@@ -1770,6 +1775,7 @@ local function chop_tree(tree)
 	end
 	if not axeTool then
 		S.choppingTree = nil
+		S.choppingStartedAt = nil
 		return false, "no axe equipped"
 	end
 
@@ -1779,6 +1785,7 @@ local function chop_tree(tree)
 
 	if not (okCC and okCS and ChopController and ChopState) then
 		S.choppingTree = nil
+		S.choppingStartedAt = nil
 		return false, "controllers missing"
 	end
 
@@ -1800,6 +1807,7 @@ local function chop_tree(tree)
 	end)
 	if not began then
 		S.choppingTree = nil
+		S.choppingStartedAt = nil
 		return false, "begin windup failed: " .. tostring(beginErr)
 	end
 	local fillSec = (ChopTuning and tonumber(ChopTuning.WindupFillSeconds)) or 0.65
@@ -1807,6 +1815,7 @@ local function chop_tree(tree)
 	local released, releaseErr = pcall(function() ChopController:ReleaseWindup() end)
 	if not released then
 		S.choppingTree = nil
+		S.choppingStartedAt = nil
 		pcall(function() ChopController:Cancel() end)
 		return false, "release windup failed: " .. tostring(releaseErr)
 	end
@@ -1816,6 +1825,7 @@ local function chop_tree(tree)
 		if not alive() or (not S.farm and not S.sniping) then
 			pcall(function() ChopController:Cancel() end)
 			S.choppingTree = nil
+			S.choppingStartedAt = nil
 			return false, "cancelled"
 		end
 		if ChopState.session() ~= nil then
@@ -1828,6 +1838,7 @@ local function chop_tree(tree)
 	if not sessionStarted then
 		pcall(function() ChopController:Cancel() end)
 		S.choppingTree = nil
+		S.choppingStartedAt = nil
 		return false, "session failed to start"
 	end
 
@@ -1881,6 +1892,7 @@ local function chop_tree(tree)
 		task.wait(0.15)
 	end
 	S.choppingTree = nil
+	S.choppingStartedAt = nil
 	return isFelled, isFelled and "felled" or "held"
 end
 
