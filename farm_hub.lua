@@ -741,6 +741,10 @@ local function wait_for_stream(pos)
 end
 
 local function teleport_to(pos, offset, finalFacing)
+	-- Do not let any farm/movement worker move the character during an active chop.
+	if S and S.choppingTree and S.choppingStartedAt and (os.clock() - S.choppingStartedAt) < 45 then
+		return false, "chop in progress; teleport paused"
+	end
 	local root = hrp()
 	if not root or not pos then return false end
 	local dest = pos + (offset or Vector3.new(0, 1, 4))
@@ -1852,6 +1856,8 @@ local function chop_tree(tree)
 	while os.clock() - t0 < maxDuration and ChopState.session() ~= nil do
 		if not alive() or (not S.farm and not S.sniping) then
 			pcall(function() ChopController:Cancel() end)
+			S.choppingTree = nil
+			S.choppingStartedAt = nil
 			return false, "cancelled"
 		end
 		local rw = plr.PlayerGui:FindFirstChild("ReactWorld")
@@ -1868,12 +1874,11 @@ local function chop_tree(tree)
 								UserInputType = Enum.UserInputType.MouseButton1,
 								Position = Vector3.new(hitBtn.AbsolutePosition.X, hitBtn.AbsolutePosition.Y, 0)
 							}
-							local sent = pcall(function()
-								firesignal(hitBtn.Activated)
-							end)
-							if not sent then
-								pcall(function() firesignal(hitBtn.InputBegan, fakeInput, false) end)
-							end
+							-- Try the available button signals independently: a successful pcall
+							-- does not guarantee that a particular signal activated the minigame.
+							pcall(function() firesignal(hitBtn.Activated) end)
+							pcall(function() firesignal(hitBtn.MouseButton1Click) end)
+							pcall(function() firesignal(hitBtn.InputBegan, fakeInput, false) end)
 							task.wait(0.12) -- debounce
 							break
 						end
