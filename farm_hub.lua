@@ -203,7 +203,7 @@ S.weightValue = type(S.weightValue) == "number" and S.weightValue or 0.6
 S.includeGrowing = S.includeGrowing == true
 S.sameIslandOnly = S.sameIslandOnly == true
 S.moveMode = "tree"
-S.respawnDelay = 0.15
+S.respawnDelay = 1.5
 do
 	local e = S.esp
 	e.players = e.players or false
@@ -408,12 +408,14 @@ function WALK.respawnJump(dest)
 	end
 	if not newRoot then return false, "no root after respawn" end
 
-	local delay = tonumber(S.respawnDelay) or 0.15
+	local delay = tonumber(S.respawnDelay) or 1.5
 	if delay > 0 then task.wait(delay) end
 
 	newRoot.CFrame = CFrame.new(landPos)
 	newRoot.AssemblyLinearVelocity = Vector3.zero
 	newRoot.AssemblyAngularVelocity = Vector3.zero
+	-- Allow the respawned character and tool inventory to finish initializing.
+	task.wait(1.0)
 
 	for _, p in ipairs(got:GetDescendants()) do
 		if p:IsA("BasePart") then pcall(function() p.CanCollide = true end) end
@@ -1754,7 +1756,10 @@ local function chop_tree(tree)
 	local axeTool = nil
 	if char then
 		for _, c in ipairs(char:GetChildren()) do
-			if c:IsA("Tool") and c.Name:match("Axe") then axeTool = c break end
+			if c:IsA("Tool") and string.lower(c.Name):find("axe", 1, true) then
+				axeTool = c
+				break
+			end
 		end
 	end
 	if not axeTool then
@@ -1795,6 +1800,8 @@ local function chop_tree(tree)
 		return false, "begin windup failed: " .. tostring(beginErr)
 	end
 	local fillSec = (ChopTuning and tonumber(ChopTuning.WindupFillSeconds)) or 0.65
+	-- Give the camera, equipped axe, and chop controller time to settle after spawn TP.
+	task.wait(0.35)
 	task.wait(math.max(0.1, fillSec))
 	local released, releaseErr = pcall(function() ChopController:ReleaseWindup() end)
 	if not released then
