@@ -362,6 +362,10 @@ function WALK.stand()
 end
 
 function WALK.respawnJump(dest)
+	-- Never force a respawn while the current tree's chop session is active.
+	if S and S.choppingTree then
+		return false, "chop in progress; respawn TP paused"
+	end
 	local char = plr.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -1750,10 +1754,12 @@ end
 
 local function chop_tree(tree)
 	if not tree or not tree.Parent then return false, "tree gone" end
+	-- Position and equip first; only then lock out respawn TP for the actual chop.
 	ensure_axe_for_chop()
 	attach(tree, true, false)
 	ensure_axe_for_chop()
 	settle_on_ground()
+	S.choppingTree = tree
 
 	local char = plr.Character
 	local axeTool = nil
@@ -1763,6 +1769,7 @@ local function chop_tree(tree)
 		end
 	end
 	if not axeTool then
+		S.choppingTree = nil
 		return false, "no axe equipped"
 	end
 
@@ -1771,11 +1778,15 @@ local function chop_tree(tree)
 	local GuiService = game:GetService("GuiService")
 
 	if not (okCC and okCS and ChopController and ChopState) then
+		S.choppingTree = nil
 		return false, "controllers missing"
 	end
 
-	local trunk = tree:FindFirstChild("Trunk") or tree.PrimaryPart or tree:GetPivot()
-	local trunkPos = trunk.Position
+	local trunk = tree:FindFirstChild("Trunk")
+	if not (trunk and trunk:IsA("BasePart")) then
+		trunk = tree.PrimaryPart or tree:FindFirstChildWhichIsA("BasePart", true)
+	end
+	local trunkPos = (trunk and trunk.Position) or tree:GetPivot().Position
 	local cam = workspace.CurrentCamera
 	if cam then
 		cam.CFrame = CFrame.lookAt(cam.CFrame.Position, trunkPos)
@@ -1784,15 +1795,27 @@ local function chop_tree(tree)
 	local vp = cam and cam:WorldToViewportPoint(trunkPos) or Vector3.new(200, 200, 0)
 	local screenPos = Vector2.new(vp.X, vp.Y) - GuiService:GetGuiInset()
 
-	ChopController:BeginWindup(axeTool, screenPos)
+	local began, beginErr = pcall(function()
+		ChopController:BeginWindup(axeTool, screenPos)
+	end)
+	if not began then
+		S.choppingTree = nil
+		return false, "begin windup failed: " .. tostring(beginErr)
+	end
 	local fillSec = (ChopTuning and tonumber(ChopTuning.WindupFillSeconds)) or 0.65
-	task.wait(fillSec)
-	ChopController:ReleaseWindup()
+	task.wait(math.max(0.1, fillSec))
+	local released, releaseErr = pcall(function() ChopController:ReleaseWindup() end)
+	if not released then
+		S.choppingTree = nil
+		pcall(function() ChopController:Cancel() end)
+		return false, "release windup failed: " .. tostring(releaseErr)
+	end
 
 	local sessionStarted = false
 	for _ = 1, 30 do
 		if not alive() or (not S.farm and not S.sniping) then
 			pcall(function() ChopController:Cancel() end)
+			S.choppingTree = nil
 			return false, "cancelled"
 		end
 		if ChopState.session() ~= nil then
@@ -1804,6 +1827,7 @@ local function chop_tree(tree)
 
 	if not sessionStarted then
 		pcall(function() ChopController:Cancel() end)
+		S.choppingTree = nil
 		return false, "session failed to start"
 	end
 
@@ -1833,9 +1857,12 @@ local function chop_tree(tree)
 								UserInputType = Enum.UserInputType.MouseButton1,
 								Position = Vector3.new(hitBtn.AbsolutePosition.X, hitBtn.AbsolutePosition.Y, 0)
 							}
-							pcall(function()
-								firesignal(hitBtn.InputBegan, fakeInput, false)
+							local sent = pcall(function()
+								firesignal(hitBtn.Activated)
 							end)
+							if not sent then
+								pcall(function() firesignal(hitBtn.InputBegan, fakeInput, false) end)
+							end
 							task.wait(0.12) -- debounce
 							break
 						end
@@ -1853,7 +1880,7 @@ local function chop_tree(tree)
 		pcall(function() ChopController:Cancel() end)
 		task.wait(0.15)
 	end
-
+	S.choppingTree = nil
 	return isFelled, isFelled and "felled" or "held"
 end
 
