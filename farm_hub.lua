@@ -202,7 +202,7 @@ S.maxRows = tonumber(S.maxRows) or 8
 S.weightValue = type(S.weightValue) == "number" and S.weightValue or 0.6
 S.includeGrowing = S.includeGrowing == true
 S.sameIslandOnly = S.sameIslandOnly == true
-S.moveMode = (S.moveMode == "bike") and "bike" or "respawn"
+S.moveMode = "tree"
 S.respawnDelay = 0.15
 do
 	local e = S.esp
@@ -741,55 +741,24 @@ local function wait_for_stream(pos)
 end
 
 local function teleport_to(pos, offset, finalFacing)
-	-- Do not let any farm/movement worker move the character during an active chop.
+	-- Tree-to-tree teleport: never reset/kill the character to travel between trees.
+	-- The active chopping lock prevents another worker from moving the player mid-chop.
 	if S and S.choppingTree and S.choppingStartedAt and (os.clock() - S.choppingStartedAt) < 45 then
 		return false, "chop in progress; teleport paused"
 	end
 	local root = hrp()
-	if not root or not pos then return false end
+	if not root or not pos then return false, "no character or destination" end
 	local dest = pos + (offset or Vector3.new(0, 1, 4))
-	local from = root.Position
-	local delta = dest - from
-	local dist = delta.Magnitude
-
-	if dist <= 8 then
-		root.CFrame = finalFacing or CFrame.new(dest)
-		root.AssemblyLinearVelocity = Vector3.zero
-		root.AssemblyAngularVelocity = Vector3.zero
-		task.wait(0.1)
-		return true
-	end
-
-	if S.moveMode == "bike" then
-		local okB, whyB = WALK.bikeJump(dest)
-		if okB then
-			if finalFacing then
-				local r2 = hrp()
-				if r2 then r2.CFrame = CFrame.new(r2.Position) * (finalFacing - finalFacing.Position) end
-			end
-			return true
-		end
-		local okR, whyR = WALK.respawnJump(dest)
-		if okR then
-			if finalFacing then
-				local r2 = hrp()
-				if r2 then r2.CFrame = CFrame.new(r2.Position) * (finalFacing - finalFacing.Position) end
-			end
-			return true
-		end
-		return false, "bike/respawn failed: " .. tostring(whyB)
-	else
-		local okR, whyR = WALK.respawnJump(dest)
-		if okR then
-			if finalFacing then
-				local r2 = hrp()
-				if r2 then r2.CFrame = CFrame.new(r2.Position) * (finalFacing - finalFacing.Position) end
-			end
-			return true
-		end
-	end
+	wait_for_stream(dest)
+	root = hrp()
+	if not root then return false, "character unavailable" end
+	root.Anchored = false
+	root.CFrame = finalFacing or CFrame.new(dest)
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+	task.wait(0.1)
+	return true
 end
-
 local function get_tree_stand(tree, fromPos, forceRandom)
 	local base = tree:GetPivot()
 	local basePos = base.Position
@@ -2933,22 +2902,16 @@ gbFarm:CreateToggle({
 	end,
 })
 
-WALK.label = gbMove:CreateLabel("mode: " .. (S.moveMode == "bike" and "bike tp (wip)" or "respawn tp"))
+WALK.label = gbMove:CreateLabel("mode: auto tp antar pohon")
 
 gbMove:CreateDropdown({
 	Name = "Movement Method",
 	Flag = "MovementMethod",
-	Options = {"Respawn TP", "Bike TP (WIP)"},
-	CurrentOption = (S.moveMode == "bike") and "Bike TP (WIP)" or "Respawn TP",
-	Callback = function(sel)
-		local chosen = type(sel) == "table" and sel[1] or sel
-		if chosen == "Bike TP (WIP)" then
-			S.moveMode = "bike"
-			safe_set(WALK.label, "mode: bike tp (wip)")
-		else
-			S.moveMode = "respawn"
-			safe_set(WALK.label, "mode: respawn tp")
-		end
+	Options = {"Auto TP Pohon"},
+	CurrentOption = "Auto TP Pohon",
+	Callback = function(_sel)
+		S.moveMode = "tree"
+		safe_set(WALK.label, "mode: auto tp antar pohon")
 	end,
 })
 
